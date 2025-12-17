@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EBoxStatus {
+  OPEN
+  CLOSED
+}
+
+enum TransactionType {
+  INCOME_SALE
+  INCOME_TRANSFER_BRANCH
+  INCOME_FROM_VOUCHER_CANCELLATION
+  EXPENSE_FROM_VOUCHER_P_CANCELLATION
+  EXPENSE_BY_CATEGORY
+  EXPENSE_EMPLOYEED
+  EXPENSE_SUPPLIER
+  EXPENSE_TRANSFER_BRANCH
+
+}
+
+enum PaymentMethod {
+  EFECTIVO
+  CHEQUE
+  CHEQUE_TERCERO
+  TRANSFERENCIA
+  TARJETA
+}
+
+
+model EBoxDaily {
+  id            String            @id @default(uuid())
+  number        Int               @default(autoincrement())// número de caja secuencial por sucursal/día
+  branchId      String
+  branchName    String
+  openedAt      DateTime          @default(now())
+  closedAt      DateTime?         @updatedAt
+  openedBy      String            // usuario que abre
+  closedBy      String?
+  openingAmount Float             @default(0)
+  closingAmount Float?            @default(0)
+  realAmount    Float?            @default(0)
+  status        EBoxStatus        @default(OPEN)
+  transactions  EBoxTransaction[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  totalSales    Float?            @default(0)
+  totalExpenses  Float?           @default(0)
+  income         Float?           @default(0)
+
+  available Boolean @default(true)
+
+  @@index([branchId, openedAt])
+  @@index([status])
+}
+
+model EBoxCategory {
+  id        String   @id @default(uuid())
+  code      Int   @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  available Boolean @default(true)
+
+  transactions EBoxTransaction[]
+}
+
+model EBoxTransaction {
+  id            String         @id @default(uuid())
+  boxId         String?
+  box           EBoxDaily?     @relation(fields: [boxId], references: [id])
+
+  transactionType          TransactionType
+  paymentMethod        PaymentMethod?
+  amount        Float
+  currency      String?        // opcional
+  description   String?
+
+  // VINCULAR VENTA / COMPRA
+  voucherId     String?
+  voucherNumber String?
+
+  // ID PAGOS
+  paymentId     String?
+
+  // GASTO POR CATEGORIA
+  categoryId    String?
+  categoryName  String?
+  category      EBoxCategory?  @relation(fields: [categoryId], references: [id])
+
+// GASTO POR EMPLEADO PAGOS
+  employeedId    String?
+  employeedName  String?
+
+// INGRESO POR CLIENTE
+  clientId      String?
+  clientName      String?
+
+  // GASTO POR PROVEEDOR
+  supplierId    String?
+  supplierName    String?
+
+  // SI ES NOTA DE CREDITO
+  cancelledInvoiceNumber String?
+
+// GASTO POR SUSUCURSAL O INGRESO POR SUCURSAL
+  branchName    String?
+  branchId      String?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  available Boolean @default(true)
+  @@index([boxId, createdAt])
+  @@index([transactionType, paymentMethod])
+}
